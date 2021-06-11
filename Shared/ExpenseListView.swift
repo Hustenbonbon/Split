@@ -35,7 +35,7 @@ let previewExpenses = [
 ]
 
 struct ExpenseListView: View {
-    @State var expenseStore = ExpensesStore()
+    @State var expenseStore = ExpensesStore(previewExpenses)
     
     @State private var searchText = ""
     
@@ -58,6 +58,9 @@ struct ExpenseListView: View {
                     }
                 }//.background(expense.paidBy.color)
             }
+            .refreshable {
+                try! await expenseStore.updateData()
+            }
             .task {
                 expenseStore.add(Expense(title: "Test", amount: 1.0, paidBy: Person(name: "marcel", color: .green), forWhom: [hendrik,max], date: Date()))
             }
@@ -68,14 +71,7 @@ struct ExpenseListView: View {
 }
 
 struct ExpensesStore {
-    var all: [Expense] {
-        get {
-            _all
-        }
-        set {
-            _all = newValue
-        }
-    }
+    private var all: [Expense]
     
     var filtered: [Expense] {
         if filterText.isEmpty {
@@ -88,13 +84,33 @@ struct ExpensesStore {
     }
     
     mutating func add(_ expense: Expense) {
-        _all.append(expense)
+        all.append(expense)
+    }
+    
+    mutating func updateData() async throws {
+        // https://swapi.dev/api/people/1
+        let (data, response) = try await URLSession.shared.data(for: URLRequest(url: URL(string: "https://swapi.dev/api/people/1")!))
+        // all = previewExpenses
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw "die welt hasst uns"
+        }
+        let jsonData = try! JSONDecoder().decode(StarWarsData.self, from: data)
+        all.append(Expense(title: jsonData.name, amount: 2.0, paidBy: hendrik, forWhom: [], date: Date()))
+        
     }
     
     var filterText = ""
     
-    private var _all = previewExpenses
+    init(_ expenses: [Expense]) {
+      all = expenses
+    }
 }
+
+struct StarWarsData: Codable {
+    var name: String
+}
+
+extension String: Error {}
 
 extension Double {
     var asCurrency: String {
