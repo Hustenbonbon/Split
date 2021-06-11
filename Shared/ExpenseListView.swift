@@ -35,24 +35,65 @@ let previewExpenses = [
 ]
 
 struct ExpenseListView: View {
-    @State var expenses: [Expense]
+    @State var expenseStore = ExpensesStore()
+    
+    @State private var searchText = ""
     
     var body: some View {
-        List($expenses) { $expense in
-            VStack {
-                HStack {
-                    Text(expense.title)
-                    Spacer()
-                    Text(expense.amount.asCurrency)
-                }
-                HStack {
-                    Text(expense.paidBy.name)
-                    Spacer()
-                    Text(expense.date.formatted())
-                }
+        NavigationView {
+            List(expenseStore.filtered) { expense in
+                VStack {
+                    HStack {
+                        Text(expense.title)
+                        Spacer()
+                        Text(expense.amount.asCurrency)
+                            .font(.subheadline)
+                    }
+                    HStack {
+                        Text(expense.paidBy.name)
+                            .font(.subheadline)
+                        Spacer()
+                        Text(expense.date.formatted(date: .abbreviated, time: .omitted))
+                            .font(.caption)
+                    }
+                }//.background(expense.paidBy.color)
             }
+            .task {
+                expenseStore.add(Expense(title: "Test", amount: 1.0, paidBy: Person(name: "marcel", color: .green), forWhom: [hendrik,max], date: Date()))
+            }
+            .navigationBarTitle("Expenses")
+        }
+        .searchable(text: $expenseStore.filterText)
+    }
+}
+
+struct ExpensesStore {
+    var all: [Expense] {
+        get {
+            _all
+        }
+        set {
+            _all = newValue
         }
     }
+    
+    var filtered: [Expense] {
+        if filterText.isEmpty {
+            return all
+        }
+        return all.filter {
+            $0.title.contains(filterText) ||
+            $0.paidBy.name.contains(filterText)
+        }
+    }
+    
+    mutating func add(_ expense: Expense) {
+        _all.append(expense)
+    }
+    
+    var filterText = ""
+    
+    private var _all = previewExpenses
 }
 
 extension Double {
@@ -66,6 +107,6 @@ extension Double {
 
 struct ExpenseListView_Previews: PreviewProvider {
     static var previews: some View {
-        ExpenseListView(expenses: previewExpenses)
+        ExpenseListView()
     }
 }
